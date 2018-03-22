@@ -1,0 +1,7 @@
+<RCC>
+    <qresource prefix="/">
+        <file>Qml/Main.qml</file>
+        <file>Qml/Breakout.qml</file>
+        <file>Qml/Fps.qml</file>
+    </qresource>
+</RCC>
