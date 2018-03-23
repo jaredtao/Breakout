@@ -3,5 +3,6 @@
         <file>Qml/Main.qml</file>
         <file>Qml/Breakout.qml</file>
         <file>Qml/Fps.qml</file>
+        <file>Qml/Ball.qml</file>
     </qresource>
 </RCC>

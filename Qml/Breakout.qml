@@ -5,7 +5,7 @@ Item {
     id: root
     //每一行的小块颜色
     property var colorList: [
-        "red", "red", "green", "green", "blue", "blue", "yellow", "yellow", "white", "white"
+        "red", "green", "blue", "yellow", "white"
     ]
     //每个小块的宽度
     readonly property int breakWidth: 100
@@ -15,14 +15,7 @@ Item {
     readonly property int breakCountPerLine: root.width / breakWidth
     //小块总数
     readonly property int breakCounts: breakCountPerLine * colorList.length
-    //每个小块状态，是否可见
-    property var breaksVisible: {
-        var arr = new Array(breakCounts);
-        for (var i = 0; i < breakCounts; i++) {
-            arr[i] = true;
-        }
-        return arr
-    }
+    readonly property int breakMargins: 2
     //活着的小块数量，为0则游戏结束
     property int aliveBreakCount: 0
     readonly property int moveSpeed: 20
@@ -31,36 +24,56 @@ Item {
     //小球移动的y方向
     property int yDir: -moveSpeed
 
+    property alias isRunning: gameTimer.running
 
-    Grid {
-        spacing: 2
+    property bool win: false
+    Item {
+        id: grid
+        objectName: "grid"
         width: parent.width
-        columns: breakCountPerLine
-        Repeater {
-            model: breakCounts
+        height: breakHeight * (colorList.length + breakMargins)
+        Component{
+            id: breakConponent
             Rectangle {
                 id: oneBreak
-                visible: breaksVisible[index]
                 objectName: "break"
                 width: breakWidth
                 height: breakHeight
                 border.width: 1
                 border.color: "gray"
-                color: colorList[parseInt(index / breakCountPerLine)]
-
+            }
+        }
+        Component.onCompleted: {
+            init();
+        }
+        //创建小块
+        function init() {
+            for (var i = 0; i < breakCountPerLine; i++) {
+                for (var j = 0; j < colorList.length; j++) {
+                    var breakOne = breakConponent.createObject(grid);
+                    breakOne.x = i * (breakWidth + breakMargins);
+                    breakOne.y = j * (breakHeight + breakMargins);
+                    breakOne.color = colorList[j];
+                }
+            }
+        }
+        //清空所有小块
+        function clear() {
+            var breaks = grid.children;
+            for (var i = 0; i < breaks.length; i++) {
+                breaks[i].destroy();
             }
         }
     }
 
-    Image {
+    Ball {
         id: ball
         source: "qrc:/Img/panda-48x48.png"
         Component.onCompleted: {
             x = root.width / 2 - width / 2
             y = controller.y - height
-        }
-        Behavior on x {NumberAnimation{ duration: 200}}
-        Behavior on y {NumberAnimation{ duration: 200}}
+        } 
+        running: isRunning
     }
     Rectangle {
         id: controller
@@ -71,15 +84,19 @@ Item {
         color: "lightgray"
         Component.onCompleted: {
             x = root.width / 2 - width / 2
-            y = root.height - height
+            y = root.height - height - 5
         }
         focus: true
         Keys.enabled: true
         Keys.onLeftPressed: {
-            controller.x -= 10;
+            if (isRunning && controller.x - 10 >= 0) {
+                controller.x -= 10;
+            }
         }
         Keys.onRightPressed: {
-            controller.x+= 10;;
+            if (isRunning && controller.x + 10 + controller.width <= root.width) {
+                controller.x+= 10;;
+            }
         }
         Keys.onSpacePressed: {
             restart();
@@ -99,50 +116,89 @@ Item {
         x: 10
     }
     function restart() {
-
+        grid.clear();
+        grid.init();
         xDir = moveSpeed - parseInt(Math.random() * moveSpeed * 2)
         controller.x = root.width / 2 - controller.width / 2
-        controller.y = root.height - controller.height
+        controller.y = root.height - controller.height - 5
         ball.x = root.width / 2 - ball.width / 2
         ball.y = controller.y - ball.height
         aliveBreakCount = breakCounts
-
+        win = false;
         console.log("restart")
         gameTimer.restart();
-    }
-    function nextStep() {
-        console.log("nextStep")
-        var nextX = ball.x + xDir;
-        var nextY = ball.y + yDir;
-        //检测撞小块
-
-        //检测撞控制器
-
-
-        //检测水平方向撞墙
-        if (nextX <= 0 )  {
-            ball.x = 0;
-            xDir = -xDir;
-        } else if (nextX + ball.width >= root.width) {
-            ball.x = root.width - ball.width;
-            xDir = -xDir;
-        } else {
-            ball.x = nextX;
-        }
-
-        //检测竖直方向撞墙
-        if (nextY <= 0) {
-            ball.y = 0
-            yDir = -yDir;
-        } else if (nextY + ball.height >= root.height) {
-            //game over
-            return gameOver();
-        } else {
-            ball.y = nextY;
-        }
     }
     function gameOver() {
         gameTimer.stop();
         console.log("game over")
+        return 0;
+    }
+    function gameWin() {
+        gameTimer.stop();
+        win = true;
+        console.log("win");
+    }
+    //检测2个矩形是否碰撞
+    function checkCollide(x1, y1, w1, h1, x2, y2, w2, h2) {
+        if (x1 < x2 + w2 && x1 + w1 > x2 && y1 < y2 + h2 && y1 + h1 > y2) {
+            return true;
+        } else {
+            return false;
+        }
+    }
+    function nextStep() {
+        var nextX = ball.x + xDir;
+        var nextY = ball.y + yDir;
+        var collideWall = false;
+        if (nextX < 0) { //检查是否碰撞左墙
+            xDir = -xDir;
+            ball.x = 0;
+            collideWall = true;
+        } else if (nextX + ball.width > width) { //检查是否碰撞右墙
+            xDir = -xDir;
+            ball.x = width - ball.width;
+            collideWall = true;
+        }
+
+        if ( nextY < 0 ) { //检查是否碰撞顶
+            yDir = -yDir;
+            ball.y = 0;
+            collideWall = true;
+        } else if (nextY + ball.height > height) { //检查是否碰撞底部
+            return gameOver();
+        }
+        //已经撞墙，不用再考虑其它的碰撞
+        if (collideWall) {
+            return;
+        }
+        //检测是否碰撞小块
+        var oneBreak = grid.childAt(nextX, nextY);
+        if (oneBreak) {
+            if (checkCollide(nextX, nextY, ball.width, ball.height,
+                             oneBreak.x, oneBreak.y, oneBreak.width, oneBreak.height)) {
+                yDir = - yDir;
+                oneBreak.visible = false;
+                aliveBreakCount--;
+                ball.x = nextX;
+                ball.y = nextY;
+                if (aliveBreakCount === 0) {
+                    return gameWin();
+                }
+                return ;
+            }
+        }
+        if (checkCollide(nextX, nextY, ball.width, ball.height,
+                         controller.x, controller.y, controller.width, controller.height)) {//检测是否碰撞控制器
+            yDir = - yDir;
+            if (ball.x < controller.x) {
+                ball.x = controller.x - ball.width;
+            } else {
+                ball.x = controller.x + controller.width;
+            }
+            ball.y = controller.y - ball.height;
+        } else {
+            ball.x = nextX;
+            ball.y = nextY;
+        }
     }
 }
