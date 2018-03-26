@@ -1,6 +1,6 @@
 import QtQuick 2.9
 import QtQuick.Controls 2.0
-
+import QtQuick.Particles 2.0
 Item {
     id: root
     //每一行的小块颜色
@@ -18,7 +18,7 @@ Item {
     readonly property int breakMargins: 2
     //活着的小块数量，为0则游戏结束
     property int aliveBreakCount: 0
-    readonly property int moveSpeed: 20
+    readonly property int moveSpeed: 25
     //小球移动的x方向
     property int xDir: moveSpeed - parseInt(Math.random() * moveSpeed * 2)
     //小球移动的y方向
@@ -66,14 +66,43 @@ Item {
         }
     }
 
-    Ball {
+    Image {
         id: ball
         source: "qrc:/Img/panda-48x48.png"
+        Behavior on x {NumberAnimation{ duration: 200}}
+        Behavior on y {NumberAnimation{ duration: 200}}
         Component.onCompleted: {
             x = root.width / 2 - width / 2
             y = controller.y - height
         } 
+
+    }
+    ParticleSystem {
+        id: sys
         running: isRunning
+        ImageParticle {
+            //qml 自带的图片
+            source: "qrc:///particleresources/star.png"
+            color: "#D7CA99"
+            colorVariation: 0.2
+            alpha: 0
+            alphaVariation: 1
+        }
+        Emitter {
+
+            x: ball.x + ball.width / 2
+            y: ball.y + ball.height / 2
+
+            emitRate: 80
+            lifeSpan: 800
+            lifeSpanVariation: 100
+            size: 30
+            sizeVariation: 4
+            velocity: AngleDirection {
+                angle: 0
+                angleVariation: 360
+            }
+        }
     }
     Rectangle {
         id: controller
@@ -141,6 +170,8 @@ Item {
     //检测2个矩形是否碰撞
     function checkCollide(x1, y1, w1, h1, x2, y2, w2, h2) {
         if (x1 < x2 + w2 && x1 + w1 > x2 && y1 < y2 + h2 && y1 + h1 > y2) {
+            return true;
+        } else if (x2 < x1 + w1 && x2 + w2 > x1 && y2 < y1 + h1 && y2 + h2 > y1) {
             return true;
         } else {
             return false;
